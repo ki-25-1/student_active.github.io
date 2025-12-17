@@ -1,0 +1,82 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+header { text-align: center; margin-bottom: 20px; }
+h1 { color: #333; font-size: 1.5rem; }
+
+.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    background: #e0e0e0;
+    cursor: pointer;
+    border-radius: 5px;
+    font-weight: bold;
+}
+.tab-btn.active { background: #007bff; color: white; }
+
+.hidden-section { display: none; }
+.active-section { display: block; }
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input, select {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+}
+
+.student-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.student-item label { flex-grow: 1; margin-left: 10px; cursor: pointer; }
+.student-item input[type="checkbox"] { width: 20px; height: 20px; }
+
+.save-btn {
+    width: 100%;
+    padding: 15px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.record-card {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    background: #fafafa;
+}
+.record-header { font-weight: bold; color: #007bff; }
+.absent-list { color: #d9534f; font-size: 0.9em; }
+
+.export-btn { background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin-left: 10px;}

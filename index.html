@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Журнал Старости</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1><i class="fa-solid fa-graduation-cap"></i> Журнал Відвідування</h1>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('mark')">Відмітити</button>
+            <button class="tab-btn" onclick="showTab('report')">Звіти</button>
+        </div>
+    </header>
+
+    <section id="mark-section" class="active-section">
+        <div class="form-group">
+            <input type="date" id="date" required>
+            <select id="pairNumber">
+                <option value="1">1 пара</option>
+                <option value="2">2 пара</option>
+                <option value="3">3 пара</option>
+                <option value="4">4 пара</option>
+                <option value="5">5 пара</option>
+            </select>
+            <select id="type">
+                <option value="Лекція">Лекція</option>
+                <option value="Практика">Практика</option>
+                <option value="Лабораторна">Лабораторна</option>
+                <option value="Семінар">Семінар</option>
+            </select>
+            <input type="text" id="subject" placeholder="Назва предмету" required>
+            <input type="text" id="teacher" placeholder="Викладач" required>
+        </div>
+
+        <div id="student-list" class="student-list">
+            </div>
+
+        <button class="save-btn" onclick="saveAttendance()">Зберегти пару</button>
+    </section>
+
+    <section id="report-section" class="hidden-section">
+        <div class="filter-group">
+            <label>Від:</label>
+            <input type="date" id="filter-start">
+            <label>До:</label>
+            <input type="date" id="filter-end">
+            <button onclick="generateReport()">Показати</button>
+            <button onclick="exportData()" class="export-btn"><i class="fa-solid fa-download"></i> Завантажити JSON</button>
+        </div>
+        
+        <div id="report-output"></div>
+    </section>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
