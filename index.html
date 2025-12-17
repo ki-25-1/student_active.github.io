@@ -11,7 +11,7 @@
 
 <div class="container">
     <header>
-        <h1><i class="fa-solid fa-graduation-cap"></i> Журнал Відвідування</h1>
+        <h1><i class="fa-solid fa-graduation-cap"></i> Журнал Групи</h1>
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('mark')">Відмітити</button>
             <button class="tab-btn" onclick="showTab('report')">Звіти</button>
@@ -20,40 +20,56 @@
 
     <section id="mark-section" class="active-section">
         <div class="form-group">
+            <div class="form-group">
+            <label>Дата:</label>
             <input type="date" id="date" required>
+            
+            <label>Номер пари:</label>
             <select id="pairNumber">
-                <option value="1">1 пара</option>
-                <option value="2">2 пара</option>
-                <option value="3">3 пара</option>
-                <option value="4">4 пара</option>
-                <option value="5">5 пара</option>
+                <option value="1">1 пара (08:30)</option>
+                <option value="2">2 пара (10:10)</option>
+                <option value="3">3 пара (11:50)</option>
+                <option value="4">4 пара (13:30)</option>
+                <option value="5">5 пара (15:10)</option>
             </select>
+
+            <label>Тип заняття:</label>
             <select id="type">
                 <option value="Лекція">Лекція</option>
                 <option value="Практика">Практика</option>
                 <option value="Лабораторна">Лабораторна</option>
                 <option value="Семінар">Семінар</option>
             </select>
-            <input type="text" id="subject" placeholder="Назва предмету" required>
-            <input type="text" id="teacher" placeholder="Викладач" required>
+
+            <label>Предмет:</label>
+            <select id="subject" onchange="autoSelectTeacher()">
+                <option value="" disabled selected>Оберіть предмет</option>
+            </select>
+
+            <label>Викладач (визначається автоматично):</label>
+            <input type="text" id="teacher" placeholder="Тут з'явиться викладач" readonly style="background-color: #e9ecef;">
         </div>
 
-        <div id="student-list" class="student-list">
-            </div>
+        <h3>Присутність:</h3>
+        <div id="student-list" class="student-list"></div>
 
         <button class="save-btn" onclick="saveAttendance()">Зберегти пару</button>
     </section>
 
     <section id="report-section" class="hidden-section">
         <div class="filter-group">
-            <label>Від:</label>
-            <input type="date" id="filter-start">
-            <label>До:</label>
-            <input type="date" id="filter-end">
-            <button onclick="generateReport()">Показати</button>
-            <button onclick="exportData()" class="export-btn"><i class="fa-solid fa-download"></i> Завантажити JSON</button>
+            <label>Період:</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="date" id="filter-start">
+                <input type="date" id="filter-end">
+            </div>
+            <br>
+            <button onclick="generateReport()" style="width: 100%; padding: 10px;">Показати звіт</button>
+            <button onclick="exportData()" class="export-btn" style="margin-top: 10px; width: 100%;">
+                <i class="fa-solid fa-download"></i> Скачати базу даних (JSON)
+            </button>
         </div>
-        
+        <hr>
         <div id="report-output"></div>
     </section>
 </div>
