@@ -1,11 +1,6 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBlL5_c9oZTuNLt8oaJYWoNYOMaU3iCAe0",
   authDomain: "studients-sheets.firebaseapp.com",
@@ -17,21 +12,68 @@ const firebaseConfig = {
   measurementId: "G-TCGHS1MYSN"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// Ініціалізація (обгорнута в try-catch для вилову помилок)
+let app, db;
+try {
+    app = initializeApp(firebaseConfig);
+    db = getDatabase(app);
+    console.log("Firebase підключено успішно");
+} catch (error) {
+    alert("Помилка підключення до Firebase! Перевір консоль (F12).");
+    console.error(error);
+}
 
-// Глобальні змінні
-let cachedSettings = null; // Для data.json
-let allReports = [];       // Всі звіти з хмари
+let cachedSettings = null;
+let allReports = [];
 
-// --- ЗАВАНТАЖЕННЯ НАЛАШТУВАНЬ (data.json з GitHub) ---
+// --- 2. ПРИЗНАЧЕННЯ КНОПОК (Замість onclick в HTML) ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Встановлюємо дату
+    document.getElementById('date').valueAsDate = new Date();
+    
+    // Завантажуємо налаштування
+    loadSettings();
+
+    // Кнопки вкладок
+    document.getElementById('btn-tab-mark').addEventListener('click', () => switchTab('mark'));
+    document.getElementById('btn-tab-report').addEventListener('click', () => switchTab('report'));
+
+    // Кнопка збереження
+    document.getElementById('saveBtn').addEventListener('click', saveData);
+
+    // Кнопка фільтру
+    document.getElementById('filterBtn').addEventListener('click', renderReports);
+
+    // Автовибір викладача
+    document.getElementById('subject').addEventListener('change', autoSelectTeacher);
+});
+
+// Функція перемикання вкладок
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('section').forEach(sec => sec.classList.remove('active-section'));
+    document.querySelectorAll('section').forEach(sec => sec.classList.add('hidden-section'));
+
+    if (tabName === 'mark') {
+        document.getElementById('mark-section').classList.remove('hidden-section');
+        document.getElementById('mark-section').classList.add('active-section');
+        document.getElementById('btn-tab-mark').classList.add('active');
+    } else {
+        document.getElementById('report-section').classList.remove('hidden-section');
+        document.getElementById('report-section').classList.add('active-section');
+        document.getElementById('btn-tab-report').classList.add('active');
+        renderReports();
+    }
+}
+
+// Завантаження data.json
 async function loadSettings() {
     try {
         const response = await fetch('data.json');
+        if (!response.ok) throw new Error("Файл не знайдено");
         cachedSettings = await response.json();
         
-        // 1. Рендеримо студентів
+        // Студенти
         const listContainer = document.getElementById('student-list');
         listContainer.innerHTML = '';
         cachedSettings.students.forEach((student, index) => {
@@ -44,7 +86,7 @@ async function loadSettings() {
             listContainer.appendChild(div);
         });
 
-        // 2. Рендеримо предмети
+        // Предмети
         const subjectSelect = document.getElementById('subject');
         subjectSelect.innerHTML = '<option value="" disabled selected>Оберіть предмет</option>';
         cachedSettings.subjects.forEach(subjObj => {
@@ -55,60 +97,24 @@ async function loadSettings() {
         });
 
     } catch (error) {
-        console.error("Помилка data.json", error);
-        alert("Не вдалось завантажити список групи (data.json)");
+        console.error(error);
+        document.getElementById('student-list').innerHTML = '<span style="color:red">Помилка data.json! Залийте файл на GitHub.</span>';
     }
 }
-
-// --- ЛОГІКА ІНТЕРФЕЙСУ ---
 
 // Автовибір викладача
-document.getElementById('subject').addEventListener('change', function() {
-    const selectedName = this.value;
+function autoSelectTeacher() {
+    const selectedName = document.getElementById('subject').value;
     const teacherInput = document.getElementById('teacher');
-    const subjObj = cachedSettings.subjects.find(s => s.name === selectedName);
-    teacherInput.value = subjObj ? subjObj.teacher : "";
-});
-
-// Перемикання вкладок (через window, бо модуль ізольований)
-window.showTab = function(tabName) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('section').forEach(sec => sec.classList.remove('active-section'));
-    document.querySelectorAll('section').forEach(sec => sec.classList.add('hidden-section'));
-
-    if (tabName === 'mark') {
-        document.getElementById('mark-section').classList.remove('hidden-section');
-        document.getElementById('mark-section').classList.add('active-section');
-        document.querySelector('button[onclick="window.showTab(\'mark\')"]').classList.add('active');
-    } else {
-        document.getElementById('report-section').classList.remove('hidden-section');
-        document.getElementById('report-section').classList.add('active-section');
-        document.querySelector('button[onclick="window.showTab(\'report\')"]').classList.add('active');
-        renderReports(); // Оновити вигляд при вході
+    
+    if (cachedSettings) {
+        const subjObj = cachedSettings.subjects.find(s => s.name === selectedName);
+        teacherInput.value = subjObj ? subjObj.teacher : "";
     }
 }
 
-// --- РОБОТА З FIREBASE (ЗБЕРЕЖЕННЯ І ЧИТАННЯ) ---
-
-// 1. Слухаємо зміни в базі даних (Realtime)
-const reportsRef = ref(db, 'reports');
-
-onValue(reportsRef, (snapshot) => {
-    const data = snapshot.val();
-    const status = document.getElementById('status-indicator');
-    
-    status.innerHTML = '<span style="color:green;">● Онлайн</span>';
-    
-    // Перетворюємо об'єкт Firebase у масив
-    allReports = [];
-    if (data) {
-        allReports = Object.values(data);
-    }
-    renderReports(); // Оновлюємо список звітів автоматично
-});
-
-// 2. Функція Збереження
-document.getElementById('saveBtn').addEventListener('click', () => {
+// Функція збереження
+function saveData() {
     const date = document.getElementById('date').value;
     const pair = document.getElementById('pairNumber').value;
     const type = document.getElementById('type').value;
@@ -128,73 +134,51 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
     const record = {
         id: Date.now(),
-        date,
-        pair,
-        type,
-        subject,
-        teacher,
-        attendance,
-        timestamp: new Date().toISOString() // Час створення запису
+        date, pair, type, subject, teacher, attendance
     };
 
-    // ВІДПРАВКА В FIREBASE
+    // Відправка
+    const reportsRef = ref(db, 'reports');
     push(reportsRef, record)
-        .then(() => {
-            alert("✅ Успішно збережено в хмару!");
-        })
-        .catch((error) => {
-            alert("❌ Помилка збереження: " + error.message);
-        });
+        .then(() => alert("✅ Дані полетіли в хмару!"))
+        .catch((error) => alert("❌ Помилка: " + error.message));
+}
+
+// Читання з бази
+const reportsRef = ref(db, 'reports');
+onValue(reportsRef, (snapshot) => {
+    const data = snapshot.val();
+    document.getElementById('status-indicator').innerHTML = '<span style="color:green;">● Онлайн</span>';
+    allReports = data ? Object.values(data) : [];
 });
 
-// 3. Відображення звітів (з фільтрацією)
+// Відображення звітів
 function renderReports() {
     const start = document.getElementById('filter-start').value;
     const end = document.getElementById('filter-end').value;
     const output = document.getElementById('report-output');
     
-    let filtered = [...allReports]; // Копія масиву
-
+    let filtered = [...allReports];
     if (start) filtered = filtered.filter(r => r.date >= start);
     if (end) filtered = filtered.filter(r => r.date <= end);
-
-    // Сортуємо: нові дати зверху
     filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     output.innerHTML = '';
-    
     if (filtered.length === 0) {
-        output.innerHTML = '<p style="text-align:center; color:#777;">Записів поки немає.</p>';
+        output.innerHTML = '<p style="text-align:center;">Записів немає.</p>';
         return;
     }
 
     filtered.forEach(record => {
         const absents = record.attendance.filter(s => !s.present).map(s => s.name);
-        
         const card = document.createElement('div');
         card.className = 'record-card';
         card.style.borderLeft = absents.length === 0 ? "5px solid #28a745" : "5px solid #ffc107";
-        
         card.innerHTML = `
-            <div class="record-header" style="display:flex; justify-content:space-between;">
-                <span>${record.date} | ${record.pair} пара</span>
-                <span style="font-size:0.8em; color:#555;">${record.type}</span>
-            </div>
-            <h4 style="margin: 5px 0;">${record.subject}</h4>
-            <div style="font-size: 0.9em; color: #555; margin-bottom:5px;">${record.teacher}</div>
-            <div class="absent-list">
-                ${absents.length > 0 
-                    ? `<strong>Н/Б:</strong> ${absents.join(', ')}` 
-                    : '<strong style="color:green;">Всі присутні!</strong>'}
-            </div>
+            <div class="record-header">${record.date} | ${record.pair} пара (${record.type})</div>
+            <div><strong>${record.subject}</strong> (${record.teacher})</div>
+            <div class="absent-list">${absents.length > 0 ? "Н/Б: " + absents.join(', ') : "Всі є"}</div>
         `;
         output.appendChild(card);
     });
 }
-
-// Кнопка оновлення фільтру
-document.getElementById('filterBtn').addEventListener('click', renderReports);
-
-// Старт
-document.getElementById('date').valueAsDate = new Date();
-loadSettings();
