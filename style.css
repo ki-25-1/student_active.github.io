@@ -79,4 +79,21 @@ input, select {
 .record-header { font-weight: bold; color: #007bff; }
 .absent-list { color: #d9534f; font-size: 0.9em; }
 
+
 .export-btn { background: #6c757d; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin-left: 10px;}
+
+/* Кнопка видалення */
+.delete-btn {
+    background: none;
+    border: none;
+    color: #dc3545; /* Червоний колір */
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: color 0.2s;
+    padding: 0 10px;
+}
+
+.delete-btn:hover {
+    color: #a71d2a; /* Темніший червоний при наведенні */
+    transform: scale(1.1);
+}
