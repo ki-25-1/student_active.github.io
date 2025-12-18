@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBlL5_c9oZTuNLt8oaJYWoNYOMaU3iCAe0",
@@ -12,43 +12,28 @@ const firebaseConfig = {
   measurementId: "G-TCGHS1MYSN"
 };
 
-// Ініціалізація (обгорнута в try-catch для вилову помилок)
 let app, db;
 try {
     app = initializeApp(firebaseConfig);
     db = getDatabase(app);
-    console.log("Firebase підключено успішно");
 } catch (error) {
-    alert("Помилка підключення до Firebase! Перевір консоль (F12).");
-    console.error(error);
+    console.error("Помилка Firebase:", error);
 }
 
 let cachedSettings = null;
 let allReports = [];
 
-// --- 2. ПРИЗНАЧЕННЯ КНОПОК (Замість onclick в HTML) ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Встановлюємо дату
     document.getElementById('date').valueAsDate = new Date();
-    
-    // Завантажуємо налаштування
     loadSettings();
 
-    // Кнопки вкладок
     document.getElementById('btn-tab-mark').addEventListener('click', () => switchTab('mark'));
     document.getElementById('btn-tab-report').addEventListener('click', () => switchTab('report'));
-
-    // Кнопка збереження
     document.getElementById('saveBtn').addEventListener('click', saveData);
-
-    // Кнопка фільтру
     document.getElementById('filterBtn').addEventListener('click', renderReports);
-
-    // Автовибір викладача
     document.getElementById('subject').addEventListener('change', autoSelectTeacher);
 });
 
-// Функція перемикання вкладок
 function switchTab(tabName) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('section').forEach(sec => sec.classList.remove('active-section'));
@@ -66,14 +51,11 @@ function switchTab(tabName) {
     }
 }
 
-// Завантаження data.json
 async function loadSettings() {
     try {
         const response = await fetch('data.json');
-        if (!response.ok) throw new Error("Файл не знайдено");
         cachedSettings = await response.json();
         
-        // Студенти
         const listContainer = document.getElementById('student-list');
         listContainer.innerHTML = '';
         cachedSettings.students.forEach((student, index) => {
@@ -86,7 +68,6 @@ async function loadSettings() {
             listContainer.appendChild(div);
         });
 
-        // Предмети
         const subjectSelect = document.getElementById('subject');
         subjectSelect.innerHTML = '<option value="" disabled selected>Оберіть предмет</option>';
         cachedSettings.subjects.forEach(subjObj => {
@@ -95,25 +76,20 @@ async function loadSettings() {
             option.textContent = subjObj.name;
             subjectSelect.appendChild(option);
         });
-
     } catch (error) {
         console.error(error);
-        document.getElementById('student-list').innerHTML = '<span style="color:red">Помилка data.json! Залийте файл на GitHub.</span>';
     }
 }
 
-// Автовибір викладача
 function autoSelectTeacher() {
     const selectedName = document.getElementById('subject').value;
     const teacherInput = document.getElementById('teacher');
-    
     if (cachedSettings) {
         const subjObj = cachedSettings.subjects.find(s => s.name === selectedName);
         teacherInput.value = subjObj ? subjObj.teacher : "";
     }
 }
 
-// Функція збереження
 function saveData() {
     const date = document.getElementById('date').value;
     const pair = document.getElementById('pairNumber').value;
@@ -133,26 +109,33 @@ function saveData() {
     });
 
     const record = {
-        id: Date.now(),
-        date, pair, type, subject, teacher, attendance
+        date, pair, type, subject, teacher, attendance,
+        timestamp: Date.now()
     };
 
-    // Відправка
-    const reportsRef = ref(db, 'reports');
-    push(reportsRef, record)
-        .then(() => alert("✅ Дані полетіли в хмару!"))
+    push(ref(db, 'reports'), record)
+        .then(() => alert("✅ Дані збережено!"))
         .catch((error) => alert("❌ Помилка: " + error.message));
 }
 
-// Читання з бази
-const reportsRef = ref(db, 'reports');
-onValue(reportsRef, (snapshot) => {
+// --- ЧИТАННЯ ДАНИХ (Оновлено для отримання ключів) ---
+onValue(ref(db, 'reports'), (snapshot) => {
     const data = snapshot.val();
     document.getElementById('status-indicator').innerHTML = '<span style="color:green;">● Онлайн</span>';
-    allReports = data ? Object.values(data) : [];
+    
+    // Тут важлива зміна: ми зберігаємо ключ запису (key)
+    allReports = [];
+    if (data) {
+        allReports = Object.entries(data).map(([key, value]) => {
+            return { ...value, firebaseKey: key }; // додаємо ID від Firebase
+        });
+    }
+    // Якщо ми на вкладці звітів - оновити їх
+    if(!document.getElementById('report-section').classList.contains('hidden-section')){
+        renderReports();
+    }
 });
 
-// Відображення звітів
 function renderReports() {
     const start = document.getElementById('filter-start').value;
     const end = document.getElementById('filter-end').value;
@@ -171,14 +154,40 @@ function renderReports() {
 
     filtered.forEach(record => {
         const absents = record.attendance.filter(s => !s.present).map(s => s.name);
+        
         const card = document.createElement('div');
         card.className = 'record-card';
         card.style.borderLeft = absents.length === 0 ? "5px solid #28a745" : "5px solid #ffc107";
+        
+        // Додаємо кнопку смітничка (fa-trash)
         card.innerHTML = `
-            <div class="record-header">${record.date} | ${record.pair} пара (${record.type})</div>
+            <div class="record-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>${record.date} | ${record.pair} пара (${record.type})</span>
+                <button class="delete-btn" data-key="${record.firebaseKey}">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
             <div><strong>${record.subject}</strong> (${record.teacher})</div>
             <div class="absent-list">${absents.length > 0 ? "Н/Б: " + absents.join(', ') : "Всі є"}</div>
         `;
         output.appendChild(card);
     });
+
+    // Додаємо події на нові кнопки видалення
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const key = this.getAttribute('data-key');
+            deleteRecord(key);
+        });
+    });
+}
+
+// --- НОВА ФУНКЦІЯ ВИДАЛЕННЯ ---
+function deleteRecord(key) {
+    if (confirm("Ви впевнені, що хочете видалити цей запис? Це неможливо скасувати!")) {
+        const recordRef = ref(db, 'reports/' + key);
+        remove(recordRef)
+            .then(() => alert("🗑 Запис видалено."))
+            .catch(err => alert("Помилка видалення: " + err.message));
+    }
 }
